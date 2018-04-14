@@ -15,9 +15,10 @@ mix escript.build 		# in the main folder
 ./dwarf path-to-file.dw     # this will start the interpretition of the script
 ```
 ## Language description
+-----------------------
 
 The language will have very simple operations and expressions.
-
+```
 expr :=  
        | binary operation            --- such as `+` `-` etc
 	   | unary operation             --- "!"
@@ -54,4 +55,4 @@ type :=
        | int 					   --- variable can be of three types at the moment int, boolean, fun
 	   | boolean 
 	   | fun
-
+```
