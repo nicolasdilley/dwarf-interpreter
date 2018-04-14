@@ -1,0 +1,9 @@
+int a := 3
+boolean b := 4
+
+if(a >= 2) then {
+	print b
+}
+else {
+	print a
+}

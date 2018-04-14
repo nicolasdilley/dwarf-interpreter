@@ -1,6 +1,7 @@
 
-defmodule Dwarf.Tokens do
+defmodule Dwarf.Lexer do
 	@moduledoc """
+					The lexer generates tokens from an input string. 
 					Tokens are a representation of a node in the AST.
 					A token is a tuple made of a name and its value.
 					If a token does not need a value, the value is nil.
@@ -16,9 +17,6 @@ defmodule Dwarf.Tokens do
 						semicolon -> end of statement semi-colon
 						print -> Output a value to the command line print 4 ("4")
 	"""
-
-	defstruct [:name, :val] 
-
 
 	@doc """
 		 		## Examples
@@ -48,8 +46,8 @@ defmodule Dwarf.Tokens do
 			Regex.match?(space_re,toLex) -> lex(Regex.replace(space_re,toLex,"",global: false),num_lines)
 			Regex.match?(newline_re,toLex) -> lex(Regex.replace(newline_re,toLex,"",global: false), num_lines + 1)
 			Regex.match?(ident_re,toLex) -> 
-				id = Regex.run(ident_re,toLex,[{:capture, :first}])
-				token = Map.get keywords, List.first id
+				id = List.first(Regex.run(ident_re,toLex,[{:capture, :first}]))
+				token = Map.get keywords, id
 				if token  do # Check if the ident is a keyword 
 					newToken = {token,num_lines}
 					newString = Regex.replace(ident_re,toLex,"",global: false)
@@ -58,9 +56,10 @@ defmodule Dwarf.Tokens do
 					token = {:ident,id}
 					[{token,num_lines} | (lex Regex.replace(ident_re,toLex,"",global: false),num_lines)]
 				end
-			true -> {result,token} = containsKeyword(toLex,keywords())
+			true -> {result,str_token} = containsKeyword(toLex,keywords())
 					 if result do
-						[{token,num_lines} | lex(String.replace_leading(toLex,token,""), num_lines)]
+					 	{str,token} = str_token
+						[{token,num_lines} | lex(String.replace_leading(toLex,str,""), num_lines)]
 					else if Regex.match?(number_re,toLex) do
 						num = String.to_integer(List.first Regex.run(number_re,toLex,[{:capture, :first}]))
 						[{:num,num} | lex(Regex.replace(number_re,toLex,"",global: false),num_lines)]
@@ -74,16 +73,36 @@ defmodule Dwarf.Tokens do
 	# return a string representation of the token
 	def show_token(token) do 
 		case token do 
-			{:op,_} -> show_op token
-			{:uop,_} -> show_uop token
-			{:num,a} -> to_string(a) 
-			{:ident,nameOfVar} -> nameOfVar
-			{:semicolon} -> ";"
-			{:int} -> "int"
-			{:bool} -> "boolean"
-			{:print} -> "print"
-			{:assign} -> ":="
-			_ -> raise "have received #{token}, could not make it work"
+			{:op,_} -> show_op token 			# operation such as + - 
+			{:uop,_} -> show_uop token  		# unary operation not 
+			{:num,a} -> to_string(a)  			# just a number like 1,2,3
+			{:ident,nameOfIdent} -> nameOfIdent	#ident == identifier such as name of var or function
+			{:semicolon} -> ";"	
+			{:int} -> "int" 					# the type "int"
+			{:bool} -> "boolean"				# the type "boolean"
+			{:print} -> "print"					# a print statement
+			# comparison operation
+			{:ge} -> ">=" 						# ge == greater than or equal
+			{:gt} -> ">"						# gt == greater than
+			{:se} -> "<="   					# se == smaller than or equal
+			{:st} -> "<" 						# st == smaller than
+			{:equality} -> "==" 
+			# assign
+			{:var_dec} -> ":="					# := a var declaration
+			{:assign} -> "="					# = used for assignment
+			# flow statement
+			{:if} -> "if"
+		    {:else} -> "else"
+		    {:then} -> "then"
+		    # lambda
+			{:fun} -> "fun"
+			{:arrow} -> "->"
+			# syntax brackets
+	     	{:lcurly} -> "{"
+			{:rcurly} -> "}"
+			{:lbracket} -> "("
+			{:rbracket} -> ")"
+			{a} -> raise "have received #{to_string(a)}, could not make it work"
 		end
 	end
 
@@ -96,13 +115,15 @@ defmodule Dwarf.Tokens do
 			:div -> "/"
 			:mul -> "*"
 			:mod -> "%"
+
 			_ -> raise "Unknown Binary operator : #{operator}"
 		end
 	end
 
 	# if a non-operation token is given returns an error
-	defp show_op(a) do 
-		raise "not a binary operation : #{a}" 
+	defp show_op({a}) do
+		atom_str = to_string{a} 
+		raise "not a binary operation : #{atom_str}" 
 	end
 
 	# return a string representation 
@@ -114,14 +135,38 @@ defmodule Dwarf.Tokens do
 		end
 	end
 
-	defp show_uop(a) do 
-		raise "not a unary operation : #{a}"
+	defp show_uop({a}) do 
+		atom_str = to_string(a)
+		raise "not a unary operation : #{atom_str}"
 	end
 	
 	# returns a list of all the keywords of the language 
 	@spec keywords() :: [str_token]
 	defp keywords() do 
-		tokens = [{:uop, :not},{:op, :add},{:op, :mul},{:op, :minus},{:op, :div},{:assign},{:semicolon},{:print},{:bool},{:int}]
+		tokens = [{:uop, :not},
+				  {:op, :add},
+				  {:op, :mul},
+				  {:op, :minus},
+				  {:op, :div},
+				  {:ge},
+				  {:gt},
+				  {:se},
+				  {:st},
+				  {:equality},
+				  {:var_dec},
+				  {:assign},
+				  {:semicolon},
+				  {:print},
+				  {:bool},
+				  {:int},
+				  {:if},
+				  {:else},
+				  {:then},
+				  {:fun},
+				  {:lcurly},
+				  {:rcurly},
+				  {:lbracket},
+				  {:rbracket}]
 		token_to_map = fn a -> {show_token(a),a} end
 		Enum.map(tokens, token_to_map)
 	end
@@ -136,7 +181,7 @@ defmodule Dwarf.Tokens do
 		Enum.reduce_while(keywords,{}, fn {key,val},acc -> if !String.starts_with?(input,key) do 
 													{:cont,{false,{}}}
 													else 
-													{:halt,{true,key}}	
+													{:halt,{true,{key,val}}}
 													end
 												end) 
 	end

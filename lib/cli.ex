@@ -1,6 +1,6 @@
 
 defmodule Dwarf.CLI do
-  alias Dwarf.Tokens, as: Tokens
+  alias Dwarf.{Lexer,Parser}
   @moduledoc """
   Dwarf is a small language that only contain very few operations. 
   
@@ -20,6 +20,9 @@ defmodule Dwarf.CLI do
   """
   def main(args \\ []) do
     {:ok,source} = File.read(List.first args)
-    IO.inspect Tokens.lex(source,0)
+    source 
+    |> Lexer.lex(0) # turns the source programs into a list of tokens
+    # |> Parser.parse # turns the list of tokens into an AST
+    |> IO.inspect # Inspect the output
   end
 end
