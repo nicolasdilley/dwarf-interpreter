@@ -23,7 +23,7 @@ defmodule Dwarf.CLI do
 
     source
     # turns the source programs into a list of tokens
-    |> Lexer.lex(0)
+    |> Lexer.lex(1)
     # turns the list of tokens into an AST
     |> Parser.parse()
     # Inspect the output

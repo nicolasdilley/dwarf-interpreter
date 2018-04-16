@@ -92,6 +92,7 @@ defmodule Dwarf.Parser do
           [{_,line}] -> raise "Parsing error: expected a ) on line #{line}"
           [] -> raise "Parsing error: unexpected end of file in a bracketised expression"
         end
+      {a,line} -> raise "Parsing Error : expected an atomic but got #{Enum.join(Tuple.to_list(a))} on line #{line}"
     end
   end
 
@@ -152,11 +153,12 @@ defmodule Dwarf.Parser do
   end
 
   # parses the args of a function such as add(2+3,8)
-  defp parse_args([_ | rest]) do
-    {node, rest1} = parse_exp(rest)
+  defp parse_args([token|rest]) do
+    {node, rest1} = parse_exp([token|rest])
 
     case rest1 do
-      [{{:coma}, _}, rest2] -> parse_args(rest2)
+      [{{:coma}, _}| rest2] -> {args ,rest3} = parse_args(rest2) 
+                                {[node|args],rest3}
       _ -> {node, rest1}
     end
   end
@@ -200,7 +202,7 @@ defmodule Dwarf.Parser do
   # To create a function "fun nameOfFunction := (int param1, fun param2) -> expr"
   defp parse_fun_dec([token | rest]) do
     case token do
-      {{:fun}, _} ->
+      {{:type,:fun}, _} ->
         case rest do
           [{{:ident,function_name},_}|rest1] -> 
             case rest1 do
@@ -213,7 +215,7 @@ defmodule Dwarf.Parser do
                   [{{:lbracket}, _} | rest1] ->
                     {args, rest2} = parse_args(rest1)
                     case rest2 do
-                      [{{:rbracket}, _} | rest3] -> 
+                      [{{:rbracket}, _} | [{{:arrow},_}| rest3]] -> 
                         {expr,rest4} = parse_exp(rest3)
                         {{:fun,function_name,args,expr}, rest4}
                       {_, line} -> raise "Parser error : Expected a ) on line #{line}"

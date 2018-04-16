@@ -6,3 +6,5 @@ if(a >= 2) then {
 else {
 	print a
 }
+
+fun add := (a,b,c) -> a + b

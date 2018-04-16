@@ -82,6 +82,9 @@ defmodule Dwarf.Lexer do
   # return a string representation of the token
   def show_token(token) do
     case token do
+      #the arrow symbol ->
+      {:arrow} ->
+        "->"
       # operation such as + - 
       {:op, _} ->
         show_op(token)
@@ -112,7 +115,9 @@ defmodule Dwarf.Lexer do
       # the type "int"
       {:type, :int} ->
         "int"
-
+      # lambda
+      {:type,:fun} ->
+        "fun"
       # the type "boolean"
       {:type, :bool} ->
         "boolean"
@@ -159,13 +164,6 @@ defmodule Dwarf.Lexer do
 
       {:then} ->
         "then"
-
-      # lambda
-      {:fun} ->
-        "fun"
-
-      {:arrow} ->
-        "->"
 
       # syntax brackets
       {:lcurly} ->
@@ -229,6 +227,7 @@ defmodule Dwarf.Lexer do
   @spec keywords() :: [str_token]
   defp keywords() do
     tokens = [
+      {:arrow},
       {:uop, :not},
       {:op, :add},
       {:op, :mul},
@@ -247,10 +246,10 @@ defmodule Dwarf.Lexer do
       {:print},
       {:type, :bool},
       {:type, :int},
+      {:type, :fun},
       {:if},
       {:else},
       {:then},
-      {:fun},
       {:lcurly},
       {:rcurly},
       {:lbracket},
