@@ -1,9 +1,9 @@
-
 defmodule Dwarf.CLI do
-  alias Dwarf.{Lexer,Parser}
+  alias Dwarf.{Lexer, Parser}
+
   @moduledoc """
   Dwarf is a small language that only contain very few operations. 
-  
+
   The operations are : +,-,*,/,%
   The languages can support assignment on variable and multiple statements.
 
@@ -19,10 +19,14 @@ defmodule Dwarf.CLI do
 
   """
   def main(args \\ []) do
-    {:ok,source} = File.read(List.first args)
-    source 
-    |> Lexer.lex(0) # turns the source programs into a list of tokens
-    # |> Parser.parse # turns the list of tokens into an AST
-    |> IO.inspect # Inspect the output
+    {:ok, source} = File.read(List.first(args))
+
+    source
+    # turns the source programs into a list of tokens
+    |> Lexer.lex(0)
+    # turns the list of tokens into an AST
+    |> Parser.parse()
+    # Inspect the output
+    |> IO.inspect()
   end
 end

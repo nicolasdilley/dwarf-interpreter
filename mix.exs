@@ -19,7 +19,7 @@ defmodule Dwarf.MixProject do
     ]
   end
 
-  def escript do 
+  def escript do
     [main_module: Dwarf.CLI]
   end
 

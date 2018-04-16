@@ -24,6 +24,7 @@ expr :=
 	   | unary operation             --- "!"
 	   | `true`, `false`             --- booleans
 	   | number                      --- integer such as `7`,`8`,`9` no floats yet
+	   | var 						 --- a variable such as a, foo, etc
 	   | function call = foo(args)   --- `get()`, `square(3)"`
 	   | (expr)                      --- bracketed expression `(2 + 3) * 2`
 
@@ -32,11 +33,11 @@ args :=
 	   | expr
 
 params := 
-		 | (identifier : type)          --- a parameter of a function declaration
-		 | (identifier : type ) params  --- parameters of a function declaration
+	| (type identifier)          --- a parameter of a function declaration
+	| (type identifier) params  --- parameters of a function declaration
 
 stmt :=  
-		| `if` expr `then` stmt `else` stmt    --- if then else statement
+		| `if` expr `then` stmt `else` stmt    --- if expr then statement else statement
 	   | assign with equal 					  --- assignment such as `a = 3 + 2` where a has already been declared
 	   | var_dec with :=                      --- declaration and assignment of a new variable `int a := 3 + 2`
 	   | { stmts }							  --- a list of statements
