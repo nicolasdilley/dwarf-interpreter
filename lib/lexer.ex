@@ -49,12 +49,8 @@ defmodule Dwarf.Lexer do
     space_re = ~r(^[ \h]+)
     newline_re = ~r(^[\n\\|\r\n])
 
-    {result,str_token} = containsKeyword(toLex, keywords)
+    
     cond do
-
-      result -> 
-      	{str, token} = str_token
-        [{token, num_lines} | lex(String.replace_leading(toLex, str, ""), num_lines)]
 
       toLex == "" ->
         []
@@ -65,19 +61,24 @@ defmodule Dwarf.Lexer do
       Regex.match?(newline_re, toLex) ->
         lex(Regex.replace(newline_re, toLex, "", global: false), num_lines + 1)
 
-      
-      Regex.match?(ident_re, toLex) ->
-        id = List.first(Regex.run(ident_re, toLex, [{:capture, :first}]))
-
-          token = {:ident, id}
-          [{token, num_lines} | lex(Regex.replace(ident_re, toLex, "", global: false), num_lines)]
-
       Regex.match?(number_re, toLex) ->
             num = String.to_integer(List.first(Regex.run(number_re, toLex, [{:capture, :first}])))
             [{:num, num} | lex(Regex.replace(number_re, toLex, "", global: false), num_lines)]
+      true ->
+      	{result,str_token} = containsKeyword(toLex, keywords)
+
+      	cond do 
+      	  result -> 
+      	    {str, token} = str_token
+            [{token, num_lines} | lex(String.replace_leading(toLex, str, ""), num_lines)]
+        
+          Regex.match?(ident_re, toLex) ->
+            id = List.first(Regex.run(ident_re, toLex, [{:capture, :first}]))
+		    token = {:ident, id}
+            [{token, num_lines} | lex(Regex.replace(ident_re, toLex, "", global: false), num_lines)]
       
-      true -> raise "could not parse : #{toLex}"
-      
+          true -> raise "could not parse : #{toLex}"
+        end
       end
   end
 
