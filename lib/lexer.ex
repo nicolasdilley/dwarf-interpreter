@@ -1,20 +1,29 @@
 defmodule Dwarf.Lexer do
   @moduledoc """
   				The lexer generates tokens from an input string. 
-  				Tokens are a representation of a node in the AST.
-  				A token is a tuple made of a name and its value.
-  				If a token does not need a value, the value is nil.
 
   				tokens are : 
-  					op   -> Binary operation such as + - / *
-  					uop  -> Unary operation Not
-  					ident  -> an identification to a variable a := 3 Ident(a,{int,3})
-  					num  -> a number 
-  					int -> the integer type
-  					bool -> the boolean type
-  					Assign -> an assignement to a variable a := 4 = Ident(a,{int,4})
-  					semicolon -> end of statement semi-colon
-  					print -> Output a value to the command line print 4 ("4")
+  					{:op,"op"}   -> Binary operation such as + - / * >= < ==
+  					{:uop,"!"}  -> Unary operation Not
+  					{:ident,"name of ident"}  -> an identification to a variable a := 3 Ident(a,{int,3})
+  					{:num,10000}  -> a number 
+  					{:true} -> the keyword "true"
+  					{:false} -> the keyword "false"
+  					{:int} -> the integer type
+  					{:bool -> the boolean type
+  					{:fun} -> the fun type
+  					{:dec} -> the symbol ":=" which is used to declare a new var or fun (IE.int a := 4)
+  					{:coma} -> a coma ","
+  					{:print} -> Output a value to the command line print 4 ("4")
+  					{:if} -> the keyword "if"
+  					{:then} -> the keyword "then"
+  					{:else} -> The keyword "else"
+  					{:arrow} -> the arrow symbole '->'
+  					{:lbracket},{:rbracket} -> "()"
+  					{:lcurly},{:rcurly} -> "{}"
+  					{:eq} -> "="
+
+
   """
 
   @doc """
@@ -32,14 +41,21 @@ defmodule Dwarf.Lexer do
 
   @spec lex(String.t(), integer) :: list
   def lex(toLex, num_lines) do
+    
     # Create the list of keywords
-    keywords = map_keywords()
-    ident_re = ~r/^[a-zA-Z]\w*/
+    keywords = keywords()
+    ident_re = ~r(^[a-zA-Z]\w*)
     number_re = ~r(^[0-9]+)
     space_re = ~r(^[ \h]+)
     newline_re = ~r(^[\n\\|\r\n])
 
+    {result,str_token} = containsKeyword(toLex, keywords)
     cond do
+
+      result -> 
+      	{str, token} = str_token
+        [{token, num_lines} | lex(String.replace_leading(toLex, str, ""), num_lines)]
+
       toLex == "" ->
         []
 
@@ -49,42 +65,29 @@ defmodule Dwarf.Lexer do
       Regex.match?(newline_re, toLex) ->
         lex(Regex.replace(newline_re, toLex, "", global: false), num_lines + 1)
 
+      
       Regex.match?(ident_re, toLex) ->
         id = List.first(Regex.run(ident_re, toLex, [{:capture, :first}]))
-        token = Map.get(keywords, id)
-        # Check if the ident is a keyword 
-        if token do
-          newToken = {token, num_lines}
-          newString = Regex.replace(ident_re, toLex, "", global: false)
-          [newToken | lex(newString, num_lines)]
-        else
+
           token = {:ident, id}
           [{token, num_lines} | lex(Regex.replace(ident_re, toLex, "", global: false), num_lines)]
-        end
 
-      true ->
-        {result, str_token} = containsKeyword(toLex, keywords())
-
-        if result do
-          {str, token} = str_token
-          [{token, num_lines} | lex(String.replace_leading(toLex, str, ""), num_lines)]
-        else
-          if Regex.match?(number_re, toLex) do
+      Regex.match?(number_re, toLex) ->
             num = String.to_integer(List.first(Regex.run(number_re, toLex, [{:capture, :first}])))
             [{:num, num} | lex(Regex.replace(number_re, toLex, "", global: false), num_lines)]
-          else
-            raise "could not parse : #{toLex}"
-          end
-        end
-    end
+      
+      true -> raise "could not parse : #{toLex}"
+      
+      end
   end
 
   # return a string representation of the token
   def show_token(token) do
     case token do
-      #the arrow symbol ->
+      # the arrow symbol ->
       {:arrow} ->
         "->"
+
       # operation such as + - 
       {:op, _} ->
         show_op(token)
@@ -109,15 +112,14 @@ defmodule Dwarf.Lexer do
       {:ident, nameOfIdent} ->
         nameOfIdent
 
-      {:semicolon} ->
-        ";"
-
       # the type "int"
       {:type, :int} ->
         "int"
+
       # lambda
-      {:type,:fun} ->
+      {:type, :fun} ->
         "fun"
+
       # the type "boolean"
       {:type, :bool} ->
         "boolean"
@@ -126,29 +128,9 @@ defmodule Dwarf.Lexer do
       {:print} ->
         "print"
 
-      # comparison operation
-      # ge == greater than or equal
-      {:ge} ->
-        ">="
-
-      # gt == greater than
-      {:gt} ->
-        ">"
-
-      # se == smaller than or equal
-      {:se} ->
-        "<="
-
-      # st == smaller than
-      {:st} ->
-        "<"
-
-      {:equality} ->
-        "=="
-
       # assign
       # := a var declaration
-      {:var_dec} ->
+      {:dec} ->
         ":="
 
       # = used for assignment
@@ -197,8 +179,9 @@ defmodule Dwarf.Lexer do
       :mod -> "%"
       :gt -> ">"
       :ge -> ">="
-      :se -> "<"
+      :se -> "<="
       :st -> "<"
+      :equality -> "=="
       _ -> raise "Lexer Error : Unknown Binary operator : #{operator}"
     end
   end
@@ -233,16 +216,15 @@ defmodule Dwarf.Lexer do
       {:op, :mul},
       {:op, :minus},
       {:op, :div},
-      {:op,:ge},
-      {:op,:gt},
-      {:op,:se},
-      {:op,:st},
+      {:op, :equality},
+      {:op, :ge},
+      {:op, :gt},
+      {:op, :se},
+      {:op, :st},
       {:true},
       {:false},
-      {:equality},
-      {:var_dec},
+      {:dec},
       {:eq},
-      {:semicolon},
       {:print},
       {:type, :bool},
       {:type, :int},
@@ -259,11 +241,6 @@ defmodule Dwarf.Lexer do
 
     token_to_map = fn a -> {show_token(a), a} end
     Enum.map(tokens, token_to_map)
-  end
-
-  # return a map where each string maps to its token i.e %{"print" => {:print}, ";" => {:semicolon}}
-  defp map_keywords do
-    Enum.reduce(keywords(), %{}, fn {k, v}, acc -> Map.put(acc, k, v) end)
   end
 
   @spec containsKeyword(String.t(), list) :: {boolean, tuple}

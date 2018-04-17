@@ -1,5 +1,4 @@
 defmodule Dwarf.Parser do
-
   @moduledoc """
   	The parser takes a list of tokens and genarates an AST trees from it.
   	This AST tree will be further optimized by the optimizer.
@@ -7,14 +6,17 @@ defmodule Dwarf.Parser do
   	type of stmt =
   		{:assign,type,nameOfVar, expr} -> type nameOfVar := expr
   		{:print,expr} -> print expr
-  		{:call,nameOfFunction,{:args,[]}} -> add(args)
+  		{:call,nameOfFunction,args} -> add(args)
   		{:var_dec,type,ident,expr} -> type ident := expr
-      {:if,expr,true_stmt,false_stmt}
+      {:if,expr,true_stmt,false_stmt} -> if expr then true_stmt else false_stmt
+      {:fun,name,args,stmt} -> fun name := (args) -> stmt
+
   	type of expr = 
   		{:op,expr,operator,expr2} = expr op expr2
   		{:uop,"!",expr} = !expr
   		{:var,identifier} -> var like a, foo, bar
-  		{:if,expr,stmt1,stmt2} -> if expr then stmt1 else stmt2
+  		 
+
   """
 
   @doc """
@@ -22,14 +24,15 @@ defmodule Dwarf.Parser do
   """
 
   def parse([]), do: []
+
   def parse(tokens) do
     # # IO.inspect tokens
     # IO.inspect parse_stmt(tokens)
-    {stmt,rest} = parse_stmt(tokens)
+    {stmt, rest} = parse_stmt(tokens)
     [stmt | parse(rest)]
   end
-  
-  @spec parse_stmt(list) :: {list,list}
+
+  @spec parse_stmt(list) :: {list, list}
   defp parse_stmt([token | rest]) do
     case token do
       # parse the var declaration and continue with the rest
@@ -40,7 +43,7 @@ defmodule Dwarf.Parser do
         parse_var_dec([token | rest])
 
       {{:if}, _} ->
-       parse_if_stmt([token | rest])
+        parse_if_stmt([token | rest])
 
       # print statement
       {{:print}, _} ->
@@ -64,7 +67,7 @@ defmodule Dwarf.Parser do
 
   defp parse_stmt([]), do: []
 
-  defp parse_atomic_exp([token|rest]) do
+  defp parse_atomic_exp([token | rest]) do
     case token do
       {:num, a} ->
         {{:num, a}, rest}
@@ -74,11 +77,12 @@ defmodule Dwarf.Parser do
 
       {:false} ->
         {{:false}, rest}
-      {{:uop,op},_} -> 
-        {expr,rest1} = parse_atomic_exp(rest)
-        {:uop,op,expr}
 
-      {{:ident, a},_} ->
+      {{:uop, op}, _} ->
+        {expr, rest1} = parse_atomic_exp(rest)
+        {:uop, op, expr}
+
+      {{:ident, a}, _} ->
         case rest do
           [{{:lbracket}, _} | _] -> parse_func([token | rest])
           _ -> {{:var, a}, rest}
@@ -86,30 +90,40 @@ defmodule Dwarf.Parser do
 
       {{:lbracket}, _} ->
         {expr, rest1} = parse_exp(rest)
+
         case rest1 do
-          [{{:rbracket},_}|rest2] -> 
-            {expr,rest2}
-          [{_,line}] -> raise "Parsing error: expected a ) on line #{line}"
-          [] -> raise "Parsing error: unexpected end of file in a bracketised expression"
+          [{{:rbracket}, _} | rest2] ->
+            {expr, rest2}
+
+          [{_, line}] ->
+            raise "Parsing error: expected a ) on line #{line}"
+
+          [] ->
+            raise "Parsing error: unexpected end of file in a bracketised expression"
         end
-      {a,line} -> raise "Parsing Error : expected an atomic but got #{Enum.join(Tuple.to_list(a))} on line #{line}"
+
+      {a, line} ->
+        raise "Parsing Error : expected an atomic but got #{Enum.join(Tuple.to_list(a))} on line #{
+                line
+              }"
     end
   end
 
   defp parse_exp([]), do: raise("Parsing error: End of file while trying to parse an expression")
-  
+
   @spec parse_exp(list) :: {tuple, list}
   defp parse_exp(tokens) do
-    {l_expr,rest} = parse_atomic_exp(tokens)
+    {l_expr, rest} = parse_atomic_exp(tokens)
+
     case rest do
-      [{{:op,op},_}|rest1] -> 
-        {r_expr,rest2} = parse_atomic_exp(rest1)
-        {{:op,op,l_expr,r_expr},rest2} 
-      _ -> {l_expr,rest}   
+      [{{:op, op}, _} | rest1] ->
+        {r_expr, rest2} = parse_atomic_exp(rest1)
+        {{:op, op, l_expr, r_expr}, rest2}
+
+      _ ->
+        {l_expr, rest}
     end
   end
-
-  
 
   # Parse a list of statement and return a list of statements and the rest of the tokens.
   @spec parse_stmts(list) :: {list, list}
@@ -143,7 +157,7 @@ defmodule Dwarf.Parser do
               {_, line} -> raise "Parser error : Expected a ) on line #{line}"
             end
 
-          [{_, line}|_] ->
+          [{_, line} | _] ->
             raise "Parser error : parsing a function without a ( on line #{line}"
         end
 
@@ -153,13 +167,16 @@ defmodule Dwarf.Parser do
   end
 
   # parses the args of a function such as add(2+3,8)
-  defp parse_args([token|rest]) do
-    {node, rest1} = parse_exp([token|rest])
+  defp parse_args([token | rest]) do
+    {node, rest1} = parse_exp([token | rest])
 
     case rest1 do
-      [{{:coma}, _}| rest2] -> {args ,rest3} = parse_args(rest2) 
-                                {[node|args],rest3}
-      _ -> {node, rest1}
+      [{{:coma}, _} | rest2] ->
+        {args, rest3} = parse_args(rest2)
+        {[node | args], rest3}
+
+      _ ->
+        {node, rest1}
     end
   end
 
@@ -171,16 +188,16 @@ defmodule Dwarf.Parser do
       [] ->
         {a, line} = token
 
-        raise "Parsing error : unexpected end of file in var dec after #{Enum.join(Tuple.to_list(a))} on line : #{
-                line
-              }"
+        raise "Parsing error : unexpected end of file in var dec after #{
+                Enum.join(Tuple.to_list(a))
+              } on line : #{line}"
 
       [{{:ident, a}, _} | rest1] ->
         case rest1 do
-          [{{:var_dec}, _} | rest2] ->
+          [{{:dec}, _} | rest2] ->
             {exp, rest3} = parse_exp(rest2)
             {type, _} = token
-            {{:var_dec, type, a, exp} , rest3}
+            {{:dec, type, a, exp}, rest3}
 
           [{a, line} | _] ->
             raise "Parsing error : expected := but got #{Enum.join(Tuple.to_list(a))} on line #{
@@ -202,67 +219,85 @@ defmodule Dwarf.Parser do
   # To create a function "fun nameOfFunction := (int param1, fun param2) -> expr"
   defp parse_fun_dec([token | rest]) do
     case token do
-      {{:type,:fun}, _} ->
+      {{:type, :fun}, _} ->
         case rest do
-          [{{:ident,function_name},_}|rest1] -> 
+          [{{:ident, function_name}, _} | rest1] ->
             case rest1 do
-              [{{:var_dec},_}|rest2] ->
+              [{{:dec}, _} | rest2] ->
                 case rest2 do
                   [{{:lbracket}, _} | [{{:rbracket}, _} | rest3]] ->
-                    {expr,rest4} = parse_exp(rest3)
-                    {{:fun, function_name, [],expr}, rest4}
+                    {expr, rest4} = parse_exp(rest3)
+                    {{:fun, function_name, [], expr}, rest4}
 
                   [{{:lbracket}, _} | rest1] ->
                     {args, rest2} = parse_args(rest1)
+
                     case rest2 do
-                      [{{:rbracket}, _} | [{{:arrow},_}| rest3]] -> 
-                        {expr,rest4} = parse_exp(rest3)
-                        {{:fun,function_name,args,expr}, rest4}
-                      {_, line} -> raise "Parser error : Expected a ) on line #{line}"
+                      [{{:rbracket}, _} | [{{:arrow}, _} | rest3]] ->
+                        {expr, rest4} = parse_exp(rest3)
+                        {{:fun, function_name, args, expr}, rest4}
+
+                      {_, line} ->
+                        raise "Parser error : Expected a ) on line #{line}"
                     end
 
                   {_, line} ->
                     raise "Parser error : parsing a function without a ( on line #{line}"
                 end
-              [{a,line}|_] -> 
-                raise "Parsing error : expected a := name received : #{Enum.join(Tuple.to_list(a))} on line : #{
-                line
-              }"
-            end 
-          [{a,line}|_] -> raise "Parsing error : expected a function name received : #{Enum.join(Tuple.to_list(a))} on line : #{
-                line
-              }"
+
+              [{a, line} | _] ->
+                raise "Parsing error : expected a := name received : #{
+                        Enum.join(Tuple.to_list(a))
+                      } on line : #{line}"
+            end
+
+          [{a, line} | _] ->
+            raise "Parsing error : expected a function name received : #{
+                    Enum.join(Tuple.to_list(a))
+                  } on line : #{line}"
         end
 
       {_, line} ->
-        raise "Parsing error : trying to parse a function declaration without starting with 'fun' on line #{line}"
+        raise "Parsing error : trying to parse a function declaration without starting with 'fun' on line #{
+                line
+              }"
     end
   end
 
-  defp parse_if_stmt([token|rest]) do
+  defp parse_if_stmt([token | rest]) do
     case token do
-      {{:if},_} -> 
-        {expr,rest1} = parse_exp(rest)
-        case rest1 do
-          [{{:then},_}|rest2] -> 
-            {true_stmt,rest3} = parse_stmt(rest2)
-            case rest3 do
-              [{{:else},_}|rest4] ->
-                {false_stmt,rest5} = parse_stmt(rest4)
-                {{:if,expr,true_stmt,false_stmt},rest5}
+      {{:if}, _} ->
+        {expr, rest1} = parse_exp(rest)
 
-              [{a,line}|_] -> raise "Parsing error : expected 'else' received : #{Enum.join(Tuple.to_list(a))} on line : #{
-                line
-              }"
+        case rest1 do
+          [{{:then}, _} | rest2] ->
+            {true_stmt, rest3} = parse_stmt(rest2)
+
+            case rest3 do
+              [{{:else}, _} | rest4] ->
+                {false_stmt, rest5} = parse_stmt(rest4)
+                {{:if, expr, true_stmt, false_stmt}, rest5}
+
+              [{a, line} | _] ->
+                raise "Parsing error : expected 'else' received : #{Enum.join(Tuple.to_list(a))} on line : #{
+                        line
+                      }"
             end
-          [{_,line}|_] -> raise "Parsing error : expected a then on line #{line}"
-          [] -> raise "Parsing error : end of file expected then"
+
+          [{_, line} | _] ->
+            raise "Parsing error : expected a then on line #{line}"
+
+          [] ->
+            raise "Parsing error : end of file expected then"
         end
-      {a,line} -> raise "Parsing error : expected 'if' received : #{Enum.join(Tuple.to_list(a))} on line : #{
+
+      {a, line} ->
+        raise "Parsing error : expected 'if' received : #{Enum.join(Tuple.to_list(a))} on line : #{
                 line
               }"
     end
   end
+
   defp parse_print([token | rest]) do
     case token do
       {{:print}, _} ->
@@ -274,23 +309,26 @@ defmodule Dwarf.Parser do
     end
   end
 
-  defp parse_assign([token|rest]) do
+  defp parse_assign([token | rest]) do
     case token do
-      {{:ident,ident},_} ->
+      {{:ident, ident}, _} ->
         case rest do
-          [{{:eq},_}|rest1] -> 
-            {expr,rest2} = parse_exp(rest1)
-            {{:assign,ident,expr},rest2} 
-          [{a,line}|_] -> 
-            IO.inspect rest
+          [{{:eq}, _} | rest1] ->
+            {expr, rest2} = parse_exp(rest1)
+            {{:assign, ident, expr}, rest2}
+
+          [{a, line} | _] ->
+            IO.inspect(rest)
+
             raise "Parsing error : expected an = but got : #{Enum.join(Tuple.to_list(a))} on line : #{
-                line
-              }"
+                    line
+                  }"
         end
-      {a,line} ->
+
+      {a, line} ->
         raise "Parsing error : expected a variable name received : #{Enum.join(Tuple.to_list(a))} on line : #{
                 line
-              }" 
+              }"
     end
   end
 end
