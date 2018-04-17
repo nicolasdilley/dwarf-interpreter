@@ -78,7 +78,7 @@ defmodule Dwarf.Lexer do
             [{token, num_lines} | lex(Regex.replace(ident_re, toLex, "", global: false), num_lines)]
       
           true -> raise "could not parse : #{toLex}"
-        end
+        end	
       end
   end
 
