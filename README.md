@@ -1,7 +1,7 @@
 # Dwarf
 
 Dwarf is a very small scripting language that will ease concurrency.
-Dwarf is heavily influenced by language like Lisp and OCaml.
+Dwarf is heavily influenced by functional programming languages like Erlang and OCaml.
 
 # Dwarf-Interpreter
 
@@ -14,10 +14,16 @@ mix escript.build 		# in the main folder
 # this will generate an executable dwarf file
 ./dwarf path-to-file.dw     # this will start the interpretition of the script
 ```
+
+The "main" function is declared in lib/cli.ex
+
 ## Language description
 -----------------------
+To see some examples of programs written in Dwarf, look inside the folder /benchmarks/*.dw
 
-The language will have very simple operations and expressions.
+The language will have very simple operations and expressions. 
+Here is the CFG specification of Dwarf, 
+
 ```
 expr :=  
 		| binary operation            --- such as `+` `-` etc
