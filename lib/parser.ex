@@ -157,6 +157,9 @@ defmodule Dwarf.Parser do
       [{{:op, :st}, _} | rest1] ->
         {r_expr, rest2} = parse_op(rest1)
         {{:op, :st, l_expr, r_expr}, rest2}
+      [{{:op, :equality}}| rest1] -> 
+        {r_expr,rest2} = parse_op(rest1)
+        {{:op,:equality,l_expr,r_expr},rest2}
       _ ->
         {l_expr, rest}
     end
