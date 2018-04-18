@@ -1,13 +1,14 @@
 defmodule Dwarf.Parser do
   @moduledoc """
   	The parser takes a list of tokens and genarates an AST trees from it.
+    The parse is a decent recursive parser.
   	This AST tree will be further optimized by the optimizer.
 
   	type of stmt =
   		{:assign,type,nameOfVar, expr} -> type nameOfVar := expr
   		{:print,expr} -> print expr
   		{:call,nameOfFunction,args} -> add(args)
-  		{:var_dec,type,ident,expr} -> type ident := expr
+  		{:dec,type,ident,expr} -> type ident := expr
       {:if,expr,true_stmt,false_stmt} -> if expr then true_stmt else false_stmt
       {:fun,name,args,stmt} -> fun name := (args) -> stmt
 
@@ -16,7 +17,8 @@ defmodule Dwarf.Parser do
   		{:uop,"!",expr} = !expr
   		{:var,identifier} -> var like a, foo, bar
   		 
-
+    type of param = 
+      {:param,type,name}
   """
 
   @doc """
@@ -26,14 +28,13 @@ defmodule Dwarf.Parser do
   def parse([]), do: []
 
   def parse(tokens) do
-    # # IO.inspect tokens
-    # IO.inspect parse_stmt(tokens)
     {stmt, rest} = parse_stmt(tokens)
     [stmt | parse(rest)]
   end
 
   @spec parse_stmt(list) :: {list, list}
   defp parse_stmt([token | rest]) do
+    # IO.inspect token
     case token do
       # parse the var declaration and continue with the rest
       {{:type, :fun}, _} ->
@@ -67,19 +68,24 @@ defmodule Dwarf.Parser do
 
   defp parse_stmt([]), do: []
 
-  defp parse_atomic_exp([token | rest]) do
+  defp parse_factor([token | rest]) do
     case token do
       {:num, a} ->
         {{:num, a}, rest}
 
-      {:true} ->
-        {{:true}, rest}
+      {:string,str} ->
+        {{:string,str},rest}
 
-      {:false} ->
-        {{:false}, rest}
+      {:bool,bool} ->
+        {{:bool,bool},rest}
+      {{:true},_} ->
+        {{:bool,:true}, rest}
+
+      {{:false},_} ->
+        {{:bool,:false}, rest}
 
       {{:uop, op}, _} ->
-        {expr, rest1} = parse_atomic_exp(rest)
+        {expr, rest1} = parse_factor(rest)
         {:uop, op, expr}
 
       {{:ident, a}, _} ->
@@ -103,23 +109,67 @@ defmodule Dwarf.Parser do
         end
 
       {a, line} ->
-        raise "Parsing Error : expected an atomic but got #{Enum.join(Tuple.to_list(a))} on line #{
+        raise "Parsing Error : expected a factor but got #{Enum.join(Tuple.to_list(a))} on line #{
                 line
               }"
     end
   end
 
-  defp parse_exp([]), do: raise("Parsing error: End of file while trying to parse an expression")
+  # look for the rest of operators with medium precedence
+  defp parse_term([]), do: raise ("Parsing error : End of file while trying to parse a term")
+  defp parse_term(tokens) do
+    {l_expr,rest} = parse_factor(tokens)
+    case rest do
+      [{{:op, :mul}, _} | rest1] ->
+        {r_expr, rest2} = parse_term(rest1)
+        {{:op, :mul, l_expr, r_expr}, rest2}
+      [{{:op, :div}, _} | rest1] ->
+        {r_expr, rest2} = parse_term(rest1)
+        {{:op, :div, l_expr, r_expr}, rest2}
+      [{{:op, :mod}, _} | rest1] ->
+        {r_expr, rest2} = parse_term(rest1)
+        {{:op, :mod, l_expr, r_expr}, rest2}
+      _ -> 
+        {l_expr,rest}
+    end
+  end
 
+  # look for operator with low precedence like addition or substraction 
+  # and then look for term 
+  defp parse_op(tokens) do
+    {l_expr,rest} = parse_term(tokens)
+    case rest do
+       [{{:op, :add}, _} | rest1] ->
+        {r_expr, rest2} = parse_op(rest1)
+        {{:op, :add, l_expr, r_expr}, rest2}
+      [{{:op, :sub}, _} | rest1] ->
+        {r_expr, rest2} = parse_op(rest1)
+        {{:op, :sub, l_expr, r_expr}, rest2}
+      [{{:op, :ge}, _} | rest1] ->
+        {r_expr, rest2} = parse_op(rest1)
+        {{:op, :ge, l_expr, r_expr}, rest2}
+      [{{:op, :gt}, _} | rest1] ->
+        {r_expr, rest2} = parse_op(rest1)
+        {{:op, :gt, l_expr, r_expr}, rest2}
+      [{{:op, :se}, _} | rest1] ->
+        {r_expr, rest2} = parse_op(rest1)
+        {{:op, :se, l_expr, r_expr}, rest2}
+      [{{:op, :st}, _} | rest1] ->
+        {r_expr, rest2} = parse_op(rest1)
+        {{:op, :st, l_expr, r_expr}, rest2}
+      _ ->
+        {l_expr, rest}
+    end
+  end
+  defp parse_exp([]), do: raise("Parsing error: End of file while trying to parse an expression")
   @spec parse_exp(list) :: {tuple, list}
   defp parse_exp(tokens) do
-    {l_expr, rest} = parse_atomic_exp(tokens)
 
+    {l_expr, rest} = parse_op(tokens)
     case rest do
-      [{{:op, op}, _} | rest1] ->
-        {r_expr, rest2} = parse_atomic_exp(rest1)
-        {{:op, op, l_expr, r_expr}, rest2}
-
+      [{{:op, :concat}, _} | rest1] ->
+        {r_expr, rest2} = parse_exp(rest1)
+        {{:op, :concat, l_expr, r_expr}, rest2}
       _ ->
         {l_expr, rest}
     end
@@ -176,7 +226,7 @@ defmodule Dwarf.Parser do
         {[node | args], rest3}
 
       _ ->
-        {node, rest1}
+        {[node], rest1}
     end
   end
 
@@ -230,14 +280,13 @@ defmodule Dwarf.Parser do
                     {{:fun, function_name, [], expr}, rest4}
 
                   [{{:lbracket}, _} | rest1] ->
-                    {args, rest2} = parse_args(rest1)
-
+                    {args, rest2} = parse_params(rest1)
                     case rest2 do
                       [{{:rbracket}, _} | [{{:arrow}, _} | rest3]] ->
                         {expr, rest4} = parse_exp(rest3)
                         {{:fun, function_name, args, expr}, rest4}
 
-                      {_, line} ->
+                      [{_, line}|_] ->
                         raise "Parser error : Expected a ) on line #{line}"
                     end
 
@@ -252,15 +301,35 @@ defmodule Dwarf.Parser do
             end
 
           [{a, line} | _] ->
-            raise "Parsing error : expected a function name received : #{
+            raise "Parsing error : Expected a function name received : #{
                     Enum.join(Tuple.to_list(a))
                   } on line : #{line}"
         end
 
       {_, line} ->
-        raise "Parsing error : trying to parse a function declaration without starting with 'fun' on line #{
+        raise "Parsing error : Trying to parse a function declaration without starting with 'fun' on line #{
                 line
               }"
+    end
+  end
+
+  defp parse_params([]), do: raise "Parsing error : End of file expected a type"
+  defp parse_params([token|rest]) do
+    case token do
+      {{:type,type},_} -> 
+        case rest do
+          [{{:ident,name},_}|rest1] -> 
+            case rest1 do
+              [{{:coma},_}|rest2] -> 
+                {args,rest3} = parse_params(rest2)
+                {[{:param,type,name} | args],rest3}
+              _ -> {[{:param,type,name}],rest1}
+            end
+        end
+      {a,line} -> 
+        raise "Parsing error : Expected a type received #{
+                    Enum.join(Tuple.to_list(a))
+                  } on line : #{line}"
     end
   end
 
@@ -279,20 +348,20 @@ defmodule Dwarf.Parser do
                 {{:if, expr, true_stmt, false_stmt}, rest5}
 
               [{a, line} | _] ->
-                raise "Parsing error : expected 'else' received : #{Enum.join(Tuple.to_list(a))} on line : #{
+                raise "Parsing error : Expected 'else' received : #{Enum.join(Tuple.to_list(a))} on line : #{
                         line
                       }"
             end
 
           [{_, line} | _] ->
-            raise "Parsing error : expected a then on line #{line}"
+            raise "Parsing error : Expected a then on line #{line}"
 
           [] ->
-            raise "Parsing error : end of file expected then"
+            raise "Parsing error : End of file expected then"
         end
 
       {a, line} ->
-        raise "Parsing error : expected 'if' received : #{Enum.join(Tuple.to_list(a))} on line : #{
+        raise "Parsing error : Expected 'if' received : #{Enum.join(Tuple.to_list(a))} on line : #{
                 line
               }"
     end
@@ -318,7 +387,6 @@ defmodule Dwarf.Parser do
             {{:assign, ident, expr}, rest2}
 
           [{a, line} | _] ->
-            IO.inspect(rest)
 
             raise "Parsing error : expected an = but got : #{Enum.join(Tuple.to_list(a))} on line : #{
                     line

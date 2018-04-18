@@ -3,10 +3,12 @@ defmodule Dwarf.Lexer do
   				The lexer generates tokens from an input string. 
 
   				tokens are : 
+  					{:concat} -> the concat symbols "<>"
   					{:op,"op"}   -> Binary operation such as + - / * >= < ==
   					{:uop,"!"}  -> Unary operation Not
   					{:ident,"name of ident"}  -> an identification to a variable a := 3 Ident(a,{int,3})
   					{:num,10000}  -> a number 
+  					{:string,"string"} -> a string "string"
   					{:true} -> the keyword "true"
   					{:false} -> the keyword "false"
   					{:int} -> the integer type
@@ -22,7 +24,6 @@ defmodule Dwarf.Lexer do
   					{:lbracket},{:rbracket} -> "()"
   					{:lcurly},{:rcurly} -> "{}"
   					{:eq} -> "="
-
 
   """
 
@@ -48,7 +49,7 @@ defmodule Dwarf.Lexer do
     number_re = ~r(^[0-9]+)
     space_re = ~r(^[ \h]+)
     newline_re = ~r(^[\n\\|\r\n])
-
+    string_re = ~r/^"(?:[^"\\]|\\.)*"/
     
     cond do
 
@@ -64,6 +65,10 @@ defmodule Dwarf.Lexer do
       Regex.match?(number_re, toLex) ->
             num = String.to_integer(List.first(Regex.run(number_re, toLex, [{:capture, :first}])))
             [{:num, num} | lex(Regex.replace(number_re, toLex, "", global: false), num_lines)]
+       Regex.match?(string_re, toLex) ->
+            string = List.first(Regex.run(string_re, toLex, [{:capture, :first}]))
+            sliced_string = String.slice(string, 1, String.length(string) - 2)
+            [{:string, sliced_string} | lex(Regex.replace(string_re, toLex, "", global: false), num_lines)]
       true ->
       	{result,str_token} = containsKeyword(toLex, keywords)
 
@@ -101,6 +106,10 @@ defmodule Dwarf.Lexer do
       {:num, a} ->
         to_string(a)
 
+      # just a string like "foo", "bar"
+      {:string, a} ->
+      	a
+
       # the boolean true
       {:true} ->
         "true"
@@ -124,6 +133,9 @@ defmodule Dwarf.Lexer do
       # the type "boolean"
       {:type, :bool} ->
         "boolean"
+      # The type "String" ->
+      {:type, :string} ->
+      	"string"
 
       # a print statement
       {:print} ->
@@ -173,7 +185,8 @@ defmodule Dwarf.Lexer do
   @spec show_op(op) :: String.t()
   defp show_op({:op, operator}) do
     case operator do
-      :minus -> "-"
+      :concat -> "<>"
+      :sub -> "-"
       :add -> "+"
       :div -> "/"
       :mul -> "*"
@@ -210,12 +223,13 @@ defmodule Dwarf.Lexer do
   # returns a list of all the keywords of the language 
   @spec keywords() :: [str_token]
   defp keywords() do
-    tokens = [
+    tokens = [  
       {:arrow},
       {:uop, :not},
+      {:op, :concat},
       {:op, :add},
       {:op, :mul},
-      {:op, :minus},
+      {:op, :sub},
       {:op, :div},
       {:op, :equality},
       {:op, :ge},
@@ -230,6 +244,7 @@ defmodule Dwarf.Lexer do
       {:type, :bool},
       {:type, :int},
       {:type, :fun},
+      {:type, :string},
       {:if},
       {:else},
       {:then},

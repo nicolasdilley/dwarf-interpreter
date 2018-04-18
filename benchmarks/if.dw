@@ -1,10 +1,12 @@
-int a := 3
+int a := 3 * 5 + 8
 boolean b := 4
-if(a >= 2) then {
-	print b
+if a > b then {
+	print "a is bigger than " <> "b"
 }
 else {
-	print a
+	print "b is bigger than a"
 }
 
-fun add := (a,b,c) -> a + b
+fun add := (int c,int d) -> c + d
+
+print add(3,2)

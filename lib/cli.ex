@@ -1,5 +1,5 @@
 defmodule Dwarf.CLI do
-  alias Dwarf.{Lexer, Parser}
+  alias Dwarf.{Lexer, Parser,Evaluator}
 
   @moduledoc """
   Dwarf is a small language that only contain very few operations. 
@@ -27,6 +27,6 @@ defmodule Dwarf.CLI do
     # turns the list of tokens into an AST
     |> Parser.parse()
     # Inspect the output
-    |> IO.inspect()
+    |> Evaluator.eval([])
   end
 end
