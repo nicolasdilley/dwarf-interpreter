@@ -45,6 +45,7 @@ defmodule Dwarf.Env do
 		  end	
 		end)
 	  case var do
+	  	nil -> {false,{}}
 		{_,_,value} -> {true,value}
 	  	a -> {true,a}
 	  end

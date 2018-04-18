@@ -45,11 +45,11 @@ defmodule Dwarf.Evaluator do
 		  {:num,a} -> a
 		  {:string,a} -> a
 		  {:bool,a} -> a
-	      {:var,a} -> {result,a} = Env.get(env,a) 
+	      {:var,a} -> {result,value} = Env.get(env,a)
 	      			  if !result do
 	      			  	raise "Dynamic error : var #{a} has not been declared"
 	      			  end
-	      			  a
+	      			  value
 		  {:call,_,_} -> eval_fun(tree,env)
 		end
 	end
