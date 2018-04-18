@@ -1,7 +1,7 @@
 # Dwarf
 
 Dwarf is a very small scripting language that will ease concurrency.
-Dwarf is heavily influenced by functional programming languages like Go and OCaml.
+Dwarf is heavily influenced by programming languages like Go and OCaml.
 
 # Dwarf-Interpreter
 
