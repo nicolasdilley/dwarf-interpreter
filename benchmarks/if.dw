@@ -1,5 +1,5 @@
 int a := 3 * 5 + 8
-boolean b := 4
+int b := 4
 if a > b then {
 	print "a is bigger than " <> "b"
 }

@@ -1,29 +1,32 @@
 defmodule Dwarf.Lexer do
   @moduledoc """
   				The lexer generates tokens from an input string. 
+				The tokens are incoded as 3-tuples where the first represent the name of the token,
+				the second part is the line on which it appears and the last part are a list of arguments.
+				IE. {:num,2,[10]} = the number '10' that appears on '2'
 
   				tokens are : 
-  					{:concat} -> the concat symbols "<>"
-  					{:op,"op"}   -> Binary operation such as + - / * >= < ==
-  					{:uop,"!"}  -> Unary operation Not
-  					{:ident,"name of ident"}  -> an identification to a variable a := 3 Ident(a,{int,3})
-  					{:num,10000}  -> a number 
-  					{:string,"string"} -> a string "string"
-  					{:true} -> the keyword "true"
-  					{:false} -> the keyword "false"
-  					{:int} -> the integer type
-  					{:bool -> the boolean type
-  					{:fun} -> the fun type
-  					{:dec} -> the symbol ":=" which is used to declare a new var or fun (IE.int a := 4)
-  					{:coma} -> a coma ","
-  					{:print} -> Output a value to the command line print 4 ("4")
-  					{:if} -> the keyword "if"
-  					{:then} -> the keyword "then"
-  					{:else} -> The keyword "else"
-  					{:arrow} -> the arrow symbole '->'
-  					{:lbracket},{:rbracket} -> "()"
-  					{:lcurly},{:rcurly} -> "{}"
-  					{:eq} -> "="
+  					{:concat,_line,[]} -> the concat symbols "<>"
+  					{:op,_line,[:add]}   -> Binary operation such as + - / * >= < ==
+  					{:uop,,_line,[:not]}  -> Unary operation Not
+  					{:ident,_line,["name of ident"]}  -> an identification to a variable a := 3 Ident(a,{int,3})
+  					{:num,_line,[10000]}  -> a number 
+  					{:string,_line,["string"]} -> a string "string"
+  					{:true,_line,[true]} -> the keyword "true"
+  					{:false,_line,[false]} -> the keyword "false"
+  					{:int,_line,[]} -> the integer type
+  					{:bool,_line,[]} -> the boolean type
+  					{:fun,_line,[]} -> the fun type
+  					{:dec,_line,[]} -> the symbol ":=" which is used to declare a new var or fun (IE.int a := 4)
+  					{:coma,_line,[]} -> a coma ","
+  					{:print,_line,[]} -> Output a value to the command line print 4 ("4")
+  					{:if,_line,[]} -> the keyword "if"
+  					{:then,_line,[]} -> the keyword "then"
+  					{:else,_line,[]} -> The keyword "else"
+  					{:arrow,_line,[]} -> the arrow symbole '->'
+  					{:lbracket,_line,[]},{:rbracket} -> "()"
+  					{:lcurly,_line,[]},{:rcurly} -> "{}"
+  					{:eq,_line,[]} -> "="
 
   """
 
@@ -64,25 +67,29 @@ defmodule Dwarf.Lexer do
 
       Regex.match?(number_re, toLex) ->
             num = String.to_integer(List.first(Regex.run(number_re, toLex, [{:capture, :first}])))
-            [{:num, num} | lex(Regex.replace(number_re, toLex, "", global: false), num_lines)]
+            [{:num,num_lines,[num]} | lex(Regex.replace(number_re, toLex, "", global: false), num_lines)]
        Regex.match?(string_re, toLex) ->
             string = List.first(Regex.run(string_re, toLex, [{:capture, :first}]))
             sliced_string = String.slice(string, 1, String.length(string) - 2)
-            [{:string, sliced_string} | lex(Regex.replace(string_re, toLex, "", global: false), num_lines)]
+            [{:string,num_lines,[sliced_string]} | lex(Regex.replace(string_re, toLex, "", global: false), num_lines)]
       true ->
       	{result,str_token} = containsKeyword(toLex, keywords)
 
       	cond do 
-      	  result -> 
-      	    {str, token} = str_token
-            [{token, num_lines} | lex(String.replace_leading(toLex, str, ""), num_lines)]
+      	  result ->
+
+      	  	case str_token do
+      	  		{str,{a,b}} -> [{a, num_lines,[b]} | lex(String.replace_leading(toLex, str, ""), num_lines)]
+      	  		{str,{a}} -> [{a, num_lines,[]} | lex(String.replace_leading(toLex, str, ""), num_lines)]
+      	  	end
+            
         
           Regex.match?(ident_re, toLex) ->
             id = List.first(Regex.run(ident_re, toLex, [{:capture, :first}]))
-		    token = {:ident, id}
-            [{token, num_lines} | lex(Regex.replace(ident_re, toLex, "", global: false), num_lines)]
+		    token = {:ident,num_lines,[id]}
+            [token | lex(Regex.replace(ident_re, toLex, "", global: false), num_lines)]
       
-          true -> raise "could not parse : #{toLex}"
+          true -> raise "could not parse : #{toLex} on line #{num_lines}"
         end	
       end
   end
@@ -236,7 +243,7 @@ defmodule Dwarf.Lexer do
       {:op, :gt},
       {:op, :se},
       {:op, :st},
-      {:true},
+      {:true,},
       {:false},
       {:dec},
       {:eq},

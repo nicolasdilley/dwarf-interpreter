@@ -1,5 +1,4 @@
 int a := 3 + 10
-int c := 10 * 2
-int b := 7
+int b := 8 - 2 * 3
 b = b + a
 print b
