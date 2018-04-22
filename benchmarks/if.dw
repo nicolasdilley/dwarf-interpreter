@@ -1,12 +1,14 @@
 int a := 3 * 5 + 8
 int b := 4
 if a > b then {
+	b = 5
 	print "a is bigger than " <> "b"
+	print b
 }
 else {
 	print "b is bigger than a"
 }
 
-fun add := (int c,int d) -> c + d
+fun add := (int c,int d) -> c + d + b
 
 print add(3,2)

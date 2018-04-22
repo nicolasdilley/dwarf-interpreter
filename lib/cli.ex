@@ -1,5 +1,5 @@
 defmodule Dwarf.CLI do
-  alias Dwarf.{Lexer, Parser,Evaluator}
+  alias Dwarf.{Lexer, Parser, Evaluator}
 
   @moduledoc """
   Dwarf is a small language that only contain very few operations. 

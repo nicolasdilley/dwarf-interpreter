@@ -1,9 +1,9 @@
 defmodule Dwarf.Lexer do
   @moduledoc """
   				The lexer generates tokens from an input string. 
-				The tokens are incoded as 3-tuples where the first represent the name of the token,
-				the second part is the line on which it appears and the last part are a list of arguments.
-				IE. {:num,2,[10]} = the number '10' that appears on '2'
+  		The tokens are incoded as 3-tuples where the first represent the name of the token,
+  		the second part is the line on which it appears and the last part are a list of arguments.
+  		IE. {:num,2,[10]} = the number '10' that appears on '2'
 
   				tokens are : 
   					{:concat,_line,[]} -> the concat symbols "<>"
@@ -45,7 +45,6 @@ defmodule Dwarf.Lexer do
 
   @spec lex(String.t(), integer) :: list
   def lex(toLex, num_lines) do
-    
     # Create the list of keywords
     keywords = keywords()
     ident_re = ~r(^[a-zA-Z]\w*)
@@ -53,9 +52,8 @@ defmodule Dwarf.Lexer do
     space_re = ~r(^[ \h]+)
     newline_re = ~r(^[\n\\|\r\n])
     string_re = ~r/^"(?:[^"\\]|\\.)*"/
-    
-    cond do
 
+    cond do
       toLex == "" ->
         []
 
@@ -66,32 +64,44 @@ defmodule Dwarf.Lexer do
         lex(Regex.replace(newline_re, toLex, "", global: false), num_lines + 1)
 
       Regex.match?(number_re, toLex) ->
-            num = String.to_integer(List.first(Regex.run(number_re, toLex, [{:capture, :first}])))
-            [{:num,num_lines,[num]} | lex(Regex.replace(number_re, toLex, "", global: false), num_lines)]
-       Regex.match?(string_re, toLex) ->
-            string = List.first(Regex.run(string_re, toLex, [{:capture, :first}]))
-            sliced_string = String.slice(string, 1, String.length(string) - 2)
-            [{:string,num_lines,[sliced_string]} | lex(Regex.replace(string_re, toLex, "", global: false), num_lines)]
+        num = String.to_integer(List.first(Regex.run(number_re, toLex, [{:capture, :first}])))
+
+        [
+          {:num, num_lines, [num]}
+          | lex(Regex.replace(number_re, toLex, "", global: false), num_lines)
+        ]
+
+      Regex.match?(string_re, toLex) ->
+        string = List.first(Regex.run(string_re, toLex, [{:capture, :first}]))
+        sliced_string = String.slice(string, 1, String.length(string) - 2)
+
+        [
+          {:string, num_lines, [sliced_string]}
+          | lex(Regex.replace(string_re, toLex, "", global: false), num_lines)
+        ]
+
       true ->
-      	{result,str_token} = containsKeyword(toLex, keywords)
+        {result, str_token} = containsKeyword(toLex, keywords)
 
-      	cond do 
-      	  result ->
+        cond do
+          result ->
+            case str_token do
+              {str, {a, b}} ->
+                [{a, num_lines, [b]} | lex(String.replace_leading(toLex, str, ""), num_lines)]
 
-      	  	case str_token do
-      	  		{str,{a,b}} -> [{a, num_lines,[b]} | lex(String.replace_leading(toLex, str, ""), num_lines)]
-      	  		{str,{a}} -> [{a, num_lines,[]} | lex(String.replace_leading(toLex, str, ""), num_lines)]
-      	  	end
-            
-        
+              {str, {a}} ->
+                [{a, num_lines, []} | lex(String.replace_leading(toLex, str, ""), num_lines)]
+            end
+
           Regex.match?(ident_re, toLex) ->
             id = List.first(Regex.run(ident_re, toLex, [{:capture, :first}]))
-		    token = {:ident,num_lines,[id]}
+            token = {:ident, num_lines, [id]}
             [token | lex(Regex.replace(ident_re, toLex, "", global: false), num_lines)]
-      
-          true -> raise "could not parse : #{toLex} on line #{num_lines}"
-        end	
-      end
+
+          true ->
+            raise "could not parse : #{toLex} on line #{num_lines}"
+        end
+    end
   end
 
   # return a string representation of the token
@@ -115,14 +125,14 @@ defmodule Dwarf.Lexer do
 
       # just a string like "foo", "bar"
       {:string, a} ->
-      	a
+        a
 
       # the boolean true
-      {:true} ->
+      {true} ->
         "true"
 
       # the boolean false
-      {:false} ->
+      {false} ->
         "false"
 
       # ident == identifier such as name of var or function
@@ -140,9 +150,10 @@ defmodule Dwarf.Lexer do
       # the type "boolean"
       {:type, :bool} ->
         "boolean"
+
       # The type "String" ->
       {:type, :string} ->
-      	"string"
+        "string"
 
       # a print statement
       {:print} ->
@@ -230,7 +241,7 @@ defmodule Dwarf.Lexer do
   # returns a list of all the keywords of the language 
   @spec keywords() :: [str_token]
   defp keywords() do
-    tokens = [  
+    tokens = [
       {:arrow},
       {:uop, :not},
       {:op, :concat},
@@ -243,8 +254,8 @@ defmodule Dwarf.Lexer do
       {:op, :gt},
       {:op, :se},
       {:op, :st},
-      {:true,},
-      {:false},
+      {true},
+      {false},
       {:dec},
       {:eq},
       {:print},
