@@ -32,6 +32,8 @@ stmt ::=
 	| type ident ':=' expr                      --- declaration and assignment of a new variable `int a := 3 + 2`
 	| '{' stmts '}'                             --- a list of statements
 	| 'print' ident                             --- print a value to the command line
+	| 'while' expr 'do' stmt                    --- a typical while statement
+	
 expr ::= 
 	| op <> expr                 --- concatenation of two string
 	| op
