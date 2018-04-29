@@ -2,7 +2,7 @@ defmodule Dwarf.Env do
   @moduledoc """
   	The environment is a list of all the declared variables and functions and their value.
 
-  	vars contaaed in the env have the form
+  	vars contained in the env have the form
   		{name,{:fun,_,[args,stmt]}}
   		{name,{:num,line,[value]}}
   		{name,{:bool,line,[value]}}

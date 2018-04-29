@@ -8,15 +8,15 @@ defmodule Dwarf.Evaluator do
 
   # Loop through each tree and evaluates them by giving them previous environment
   def eval(trees, env) do
-    time_before = Time.utc_now()
+    # time_before = Time.utc_now()
 
     List.foldl(trees, env, fn tree, prev_env ->
       {_, new_env} = eval_stmt(tree, prev_env)
       new_env
     end)
 
-    time_after = Time.utc_now()
-    IO.puts("end of eval : " <> to_string(Time.diff(time_before, time_after)) <> "s.")
+    # time_after = Time.utc_now()
+    # IO.puts("end of eval : " <> to_string(Time.diff(time_before, time_after)) <> "s.")
   end
 
   defp eval_stmt(tree, env) do
@@ -38,6 +38,10 @@ defmodule Dwarf.Evaluator do
         new_env = Env.update(env, {:assign, line, [name, new_expr]})
         {new_expr, new_env}
 
+      {:while,_,args} -> 
+        {new_expr,new_env} = eval_while(args,env)
+        {new_expr,remove_local_vars(env,new_env)}
+
       {:print, _, [expr]} ->
         new_expr = eval_exp(expr, env)
         IO.puts(new_expr)
@@ -51,6 +55,18 @@ defmodule Dwarf.Evaluator do
 
       x ->
         {eval_exp(x, env), env}
+    end
+  end
+
+  defp eval_while([expr,stmt],env) do
+    expr2 = eval_exp(expr,env)
+    case expr2 do
+      false -> 
+        {expr2,new_env} = eval_stmt(stmt,env)
+        {expr2,remove_local_vars(env,new_env)}
+      _ ->
+        {_,new_env} = eval_stmt(stmt,env)   
+        eval_while([expr,stmt],remove_local_vars(env,new_env))
     end
   end
 
@@ -133,15 +149,38 @@ defmodule Dwarf.Evaluator do
   defp eval_if({:if, _, [expr, stmt1, stmt2]}, env) do
     exp = eval_exp(expr, env)
     if(exp) do
-      {new_expr, _} = eval_stmt(stmt1, env)
-      # return the old env to remove the local variable and functions
-      {new_expr, env}
+      {new_expr, new_env} = eval_stmt(stmt1, env)
+      
+      # return the last expression done in the stmt and the env with the local var stripped
+      {new_expr, remove_local_vars(env,new_env)}
     else
-      {new_expr, _} = eval_stmt(stmt2, env)
-      # return the old env to remove the local variable and functions
-      {new_expr, env}
+      {new_expr, new_env} = eval_stmt(stmt2, env)
+
+      # return the last expression done in the stmt and the env with the local var stripped
+      {new_expr, remove_local_vars(env,new_env)}
     end
   end
 
   defp eval_if(_, _), do: raise("Dynamic error : Expected an if statement")
+  
+  # Remove the addional variables that appears in new_env and not in old_env 
+  defp remove_local_vars(old_env,new_env) do
+    Enum.reduce(old_env,[],
+      fn old_var, acc -> 
+
+        {old_name,_} = old_var
+
+        new_var = Enum.find(new_env, 
+          fn new_var -> 
+            {new_name,_} = new_var
+            old_name == new_name
+            end)
+
+      if new_var != nil do
+        [new_var|acc]
+      else
+        [old_var|acc]
+      end
+        end)
+  end
 end

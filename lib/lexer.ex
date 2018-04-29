@@ -27,6 +27,8 @@ defmodule Dwarf.Lexer do
   					{:lbracket,_line,[]},{:rbracket} -> "()"
   					{:lcurly,_line,[]},{:rcurly} -> "{}"
   					{:eq,_line,[]} -> "="
+            {:while,_line,[]} -> "while"
+            {:do,_line,[]} -> "do"
 
   """
 
@@ -193,6 +195,10 @@ defmodule Dwarf.Lexer do
 
       {:coma} ->
         ","
+      {:while} -> 
+        "while"
+      {:do} -> 
+        "do"
 
       {a} ->
         raise "Lexer Error : have received #{to_string(a)}, the lexer does not recognize this input"
@@ -270,7 +276,9 @@ defmodule Dwarf.Lexer do
       {:rcurly},
       {:lbracket},
       {:rbracket},
-      {:coma}
+      {:coma},
+      {:while},
+      {:do}
     ]
 
     token_to_map = fn a -> {show_token(a), a} end

@@ -11,6 +11,7 @@ defmodule Dwarf.Parser do
   		{:dec,line,[type,ident,expr]} -> type ident := expr
       {:if,line,[expr,true_stmt,false_stmt]} -> if expr then true_stmt else false_stmt
       {:fun,line,[name,args,stmt]} -> fun name := (args) -> stmt
+      {:while,line,[expr,stmt]} -> 'while' expr 'do' stmt
 
   	type of expr = 
   		{:op,line,[expr,operator,expr2} = expr op expr2
@@ -50,6 +51,10 @@ defmodule Dwarf.Parser do
       # print statement
       {:print, _, _} ->
         parse_print([token | rest])
+
+      # while statement 
+      {:while,_,_} -> 
+        parse_while([token |rest ])
 
       # assignmment such as a = a + 4
       {:ident, _, _} ->
@@ -371,7 +376,7 @@ defmodule Dwarf.Parser do
             end
 
           [{_, line, _} | _] ->
-            raise "Parsing error : Expected a then on line #{line}"
+            raise "Parsing error : Expected 'then' on line #{line}"
 
           [] ->
             raise "Parsing error : End of file expected then"
@@ -382,6 +387,18 @@ defmodule Dwarf.Parser do
     end
   end
 
+  
+  defp parse_while([{:while,line,_}| rest]) do
+    {expr,rest1} = parse_exp(rest)
+    case rest1 do
+      [{:do,_,_}|rest2] -> 
+        {stmt,rest3} = parse_stmt(rest2)
+        {{:while,line,[expr,stmt]},rest3}
+      [{a,line,_}|_] -> 
+        raise "Parsing error : Expected 'do' received : #{to_string(a)} on line : #{line}"
+    end
+  end
+  defp parse_while([{a,line,_}|_]), do: raise "Parsing error : Expected 'for' received : #{to_string(a)} on line : #{line}"
   defp parse_print([token | rest]) do
     case token do
       {:print, line, _} ->
@@ -392,6 +409,7 @@ defmodule Dwarf.Parser do
         raise "Parsing error : expected a print got a #{to_string(a)} on line : #{line}"
     end
   end
+
 
   defp parse_assign([token | rest]) do
     case token do

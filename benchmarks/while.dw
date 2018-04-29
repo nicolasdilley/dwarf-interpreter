@@ -1,0 +1,8 @@
+int b := 7 
+b = b + 3 
+
+
+while b > 1 do {
+	print b
+	b = b - 1
+}
