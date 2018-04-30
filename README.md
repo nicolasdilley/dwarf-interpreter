@@ -1,7 +1,7 @@
 # Dwarf
 
 Dwarf is a very small scripting language that will ease concurrency.
-Dwarf is heavily influenced by programming languages like Go and OCaml.
+The syntax of Dwarf is heavily influenced by programming languages like Go and OCaml.
 
 # Dwarf-Interpreter
 
@@ -33,7 +33,7 @@ stmt ::=
 	| '{' stmts '}'                             --- a list of statements
 	| 'print' ident                             --- print a value to the command line
 	| 'while' expr 'do' stmt                    --- a typical while statement
-	
+
 expr ::= 
 	| op <> expr                 --- concatenation of two string
 	| op
